@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Creature MVP</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div id="pool-gate" class="pool-gate" aria-label="Pool selection">
+      <div class="pool-panel">
+        <div class="pool-title">POOL SIZE</div>
+        <div class="pool-actions">
+          <button id="pool-large" class="pool-button" type="button">LARGE</button>
+          <button id="pool-small" class="pool-button" type="button">SMALL</button>
+        </div>
+      </div>
+    </div>
+
+    <main class="app" aria-label="Creature composer">
+      <header class="topbar">
+        <h1>CREATURE COMPOSER</h1>
+        <div id="space-ticker" class="space-ticker">SPACE 0 / 0</div>
+        <div id="status" class="status">READY</div>
+      </header>
+
+      <section class="stage" aria-label="Creature builder stage">
+        <div class="creature-name-stage">
+          <span class="name-label">NAME:</span>
+          <span id="creature-name-value" class="name-value">UNTITLED SPECIMEN</span>
+        </div>
+        <div class="canvas-wrap">
+          <canvas id="preview" width="1024" height="1024" aria-label="Creature preview"></canvas>
+
+          <div id="zone-controls" class="zone-controls" aria-label="Part controls on canvas">
+            <div class="zone-control" data-part="head">
+              <button class="side-arrow left" data-action="dec" data-part="head" aria-label="Previous head">&#8592;</button>
+              <button class="side-arrow right" data-action="inc" data-part="head" aria-label="Next head">&#8594;</button>
+            </div>
+
+            <div class="zone-control" data-part="torso">
+              <button class="side-arrow left" data-action="dec" data-part="torso" aria-label="Previous torso">&#8592;</button>
+              <button class="side-arrow right" data-action="inc" data-part="torso" aria-label="Next torso">&#8594;</button>
+            </div>
+
+            <div class="zone-control" data-part="legs">
+              <button class="side-arrow left" data-action="dec" data-part="legs" aria-label="Previous legs">&#8592;</button>
+              <button class="side-arrow right" data-action="inc" data-part="legs" aria-label="Next legs">&#8594;</button>
+            </div>
+
+            <div class="zone-control" data-part="feet">
+              <button class="side-arrow left" data-action="dec" data-part="feet" aria-label="Previous feet">&#8592;</button>
+              <button class="side-arrow right" data-action="inc" data-part="feet" aria-label="Next feet">&#8594;</button>
+            </div>
+          </div>
+
+          <div id="lock-overlay" class="overlay hidden" aria-hidden="true">
+            <div class="overlay-left" id="overlay-indices">H T L F</div>
+            <div class="overlay-right">
+              <span id="overlay-seed">SEED 00000000</span>
+              <span id="overlay-stability">STABILITY 60%</span>
+            </div>
+          </div>
+        </div>
+        <div id="repeat-alarm" class="repeat-alarm hidden" aria-live="polite">REPEAT ALERT x2</div>
+
+        <div class="combo-tracker" id="combo-tracker" aria-label="Combination tracker">
+          <div class="combo-title">COMBINATION TRACKER</div>
+          <div class="combo-primary">
+            <span class="combo-pill">CREATURE <strong id="combo-creature-index">--</strong></span>
+            <span class="combo-pill">SEEN <strong id="combo-seen">0</strong></span>
+            <span class="combo-pill combo-pill-alert">REPEAT <strong id="combo-repeat">0x</strong></span>
+          </div>
+          <div class="combo-secondary">
+            <span>TOTAL <strong id="combo-total">0</strong></span>
+            <span>EXPLORED <strong id="combo-explored">0.0000%</strong></span>
+          </div>
+        </div>
+      </section>
+
+      <section class="meta" aria-label="Information">
+        <div class="stats-panel" id="stats-panel">
+          <div class="data-label">DATA</div>
+          <div class="stats-row">
+            <span>HUMAN SCORE <strong id="stat-human">--</strong></span>
+            <span>TORSO ID <strong id="stat-torso" class="id-value">----</strong></span>
+            <span>COHERENCE <strong id="stat-coherence">--%</strong></span>
+            <span>MUTATION <strong id="stat-mutation">--%</strong></span>
+            <span>SYNC <strong id="stat-sync">--%</strong></span>
+          </div>
+          <div class="stats-row stats-uniqueness">
+            <span>RARITY <strong id="stat-rarity">--%</strong></span>
+            <span>DISTANCE <strong id="stat-distance">--%</strong></span>
+            <span>SET <strong id="stat-set">--</strong></span>
+            <span>REPEAT <strong id="stat-repeat">0x</strong></span>
+            <span>GEN <strong id="stat-generation">0</strong></span>
+          </div>
+          <div class="heatmap" id="rarity-heatmap" aria-label="Rarity heatmap">
+            <div class="heat-cell"><span class="heat-label">H</span><span class="heat-track"><span id="heat-head" class="heat-fill"></span></span></div>
+            <div class="heat-cell"><span class="heat-label">T</span><span class="heat-track"><span id="heat-torso" class="heat-fill"></span></span></div>
+            <div class="heat-cell"><span class="heat-label">L</span><span class="heat-track"><span id="heat-legs" class="heat-fill"></span></span></div>
+            <div class="heat-cell"><span class="heat-label">F</span><span class="heat-track"><span id="heat-feet" class="heat-fill"></span></span></div>
+          </div>
+          <div class="stats-row stats-corr">
+            <span id="stat-corr-ht">HEAD~TORSO r=--</span>
+            <span id="stat-corr-lf">LEGS~FEET r=--</span>
+            <span id="stat-corr-ul">UPPER~LOWER r=--</span>
+          </div>
+        </div>
+        <div class="action-row" aria-label="Action controls">
+          <button id="set-anchor" class="action-btn" type="button">SET</button>
+          <button id="mutate-unlocked" class="action-btn" type="button">MUTATE</button>
+          <button id="undo-action" class="action-btn" type="button">UNDO</button>
+          <button id="redo-action" class="action-btn" type="button">REDO</button>
+        </div>
+        <div class="lock-row" aria-label="Part locks">
+          <button class="lock-btn" type="button" data-lock-part="head">H</button>
+          <button class="lock-btn" type="button" data-lock-part="torso">T</button>
+          <button class="lock-btn" type="button" data-lock-part="legs">L</button>
+          <button class="lock-btn" type="button" data-lock-part="feet">F</button>
+        </div>
+        <div id="info">Keys: Q/W Head, A/S Torso, Z/X Legs, O/P Feet, R Randomize, M Mutate, G Set, U Undo, Y Redo, 1-4 Lock, B Back, C Submit, V Export Data, F Fullscreen</div>
+        <div id="errors" class="errors" aria-live="polite"></div>
+        <div class="go-back-row">
+          <button id="go-back" class="go-back-btn" type="button" aria-label="Go back">🔙 GO BACK</button>
+          <button id="submit-creature" class="go-back-btn submit-btn" type="button" aria-label="Submit creature">📸 SUBMIT</button>
+          <button id="export-data" class="go-back-btn" type="button" aria-label="Export variation data">⬇ DATA</button>
+          <a class="go-back-btn secondary-link" href="./process.html" target="_blank" rel="noopener">🧪 PROCESS</a>
+          <a class="go-back-btn secondary-link" href="./monitor.html" target="_blank" rel="noopener">📊 MONITOR</a>
+          <a class="go-back-btn secondary-link" href="./gallery.html" target="_blank" rel="noopener">🖼 GALLERY</a>
+        </div>
+      </section>
+    </main>
+
+    <script src="./app.js" type="module"></script>
+  </body>
+</html>

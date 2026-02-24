@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Creature Gallery</title>
+    <link rel="stylesheet" href="./gallery.css" />
+  </head>
+  <body>
+    <main class="gallery-app">
+      <header class="gallery-top">
+        <h1>SUBMISSION WALL</h1>
+        <div class="gallery-actions">
+          <button id="clear-wall" type="button">CLEAR WALL</button>
+          <a href="./" target="_blank" rel="noopener">OPEN COMPOSER</a>
+        </div>
+      </header>
+      <div id="gallery-count" class="gallery-count">0 ENTRIES</div>
+      <section id="gallery-grid" class="gallery-grid" aria-label="Submitted creatures"></section>
+    </main>
+    <script src="./gallery.js" type="module"></script>
+  </body>
+</html>

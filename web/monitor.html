@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Creature Monitor</title>
+    <link rel="stylesheet" href="./monitor.css" />
+  </head>
+  <body>
+    <main class="monitor">
+      <header class="monitor-header">
+        <div class="label">LIVE MONITOR</div>
+        <div id="monitor-time" class="time">--:--:--</div>
+      </header>
+
+      <section class="hero">
+        <div id="m-name" class="name">NO SIGNAL</div>
+        <div id="m-seed" class="seed">SEED --------</div>
+      </section>
+
+      <section class="numbers">
+        <div class="num-card"><span>GEN</span><strong id="m-gen">0</strong></div>
+        <div class="num-card"><span>RARITY</span><strong id="m-rarity">0%</strong></div>
+        <div class="num-card"><span>DIST</span><strong id="m-distance">0%</strong></div>
+        <div class="num-card"><span>REPEAT</span><strong id="m-repeat">0x</strong></div>
+      </section>
+
+      <section class="concept-lab" aria-label="Human versus AI interpretation">
+        <div class="concept-head">HUMAN VS AI INTERPRETER</div>
+        <div class="concept-cards">
+          <article class="concept-card">
+            <span>HUMAN CONCEPT</span>
+            <strong id="m-human-concept">0%</strong>
+          </article>
+          <article class="concept-card">
+            <span>AI PRESSURE</span>
+            <strong id="m-ai-pressure">0%</strong>
+          </article>
+          <article class="concept-card">
+            <span>TENSION</span>
+            <strong id="m-tension">0%</strong>
+          </article>
+        </div>
+        <div class="concept-tags">
+          <span id="m-concept-tag">CONCEPT: WAITING SIGNAL</span>
+          <span id="m-class-tag">CLASS: UNASSIGNED</span>
+        </div>
+      </section>
+
+      <section class="viz" aria-label="Analytics visualization">
+        <div class="viz-head">PHASE MAP (HUMAN ↔ AI)</div>
+        <canvas id="m-phase-canvas" width="840" height="220" aria-label="Human versus AI phase plot"></canvas>
+      </section>
+
+      <section class="corr" aria-label="Correlation matrix">
+        <div class="corr-row"><span>HEAD~TORSO</span><i><b id="m-corr-ht"></b></i><strong id="m-corr-ht-val">0.00</strong></div>
+        <div class="corr-row"><span>LEGS~FEET</span><i><b id="m-corr-lf"></b></i><strong id="m-corr-lf-val">0.00</strong></div>
+        <div class="corr-row"><span>UPPER~LOWER</span><i><b id="m-corr-ul"></b></i><strong id="m-corr-ul-val">0.00</strong></div>
+      </section>
+
+      <section class="bars">
+        <div class="bar-row"><span>H</span><i><b id="m-heat-h"></b></i></div>
+        <div class="bar-row"><span>T</span><i><b id="m-heat-t"></b></i></div>
+        <div class="bar-row"><span>L</span><i><b id="m-heat-l"></b></i></div>
+        <div class="bar-row"><span>F</span><i><b id="m-heat-f"></b></i></div>
+      </section>
+
+      <section class="space">
+        <div id="m-space" class="space-count">SPACE 0 / 0</div>
+        <div id="m-explored" class="explored">0.0000%</div>
+      </section>
+
+      <section id="m-alert" class="alert hidden">REPEAT ALERT</section>
+
+      <section class="submits" aria-label="Recent submissions">
+        <div class="submits-head">
+          <span>RECENT SUBMITS</span>
+          <strong id="m-submit-count">0</strong>
+        </div>
+        <div id="m-submit-list" class="submit-list"></div>
+      </section>
+
+      <footer class="foot">OPEN /web/ ON PRIMARY SCREEN</footer>
+    </main>
+
+    <script src="./monitor.js" type="module"></script>
+  </body>
+</html>

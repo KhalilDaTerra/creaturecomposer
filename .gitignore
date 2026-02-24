@@ -1,0 +1,5 @@
+.DS_Store
+*.log
+assets/
+PARTS_SMART_LATEST
+DEBUG_PAGES_DROP

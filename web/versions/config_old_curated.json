@@ -1,0 +1,7 @@
+{
+  "head": 32,
+  "torso": 30,
+  "legs": 32,
+  "feet": 32,
+  "canvas": 1024
+}

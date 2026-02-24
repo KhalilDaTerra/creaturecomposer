@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Process Cycle</title>
+    <link rel="stylesheet" href="./process.css" />
+  </head>
+  <body>
+    <main class="process">
+      <header class="process-top">
+        <div class="title">PROCESS CYCLE WALL</div>
+        <div id="proc-summary" class="counter">PAGES 0 • SPLITS 0 • PARTS 0</div>
+      </header>
+
+      <section class="lanes">
+        <article class="lane lane-pages">
+          <div class="lane-top">
+            <div class="lane-title">FULL PAGE DEBUGS</div>
+            <div id="pages-counter" class="lane-counter">0/0</div>
+          </div>
+          <div class="lane-stage">
+            <img id="pages-image" alt="Full page debug cycle" />
+          </div>
+          <div id="pages-meta" class="lane-meta">LOADING…</div>
+        </article>
+
+        <article class="lane lane-splits">
+          <div class="lane-top">
+            <div class="lane-title">SPLIT DEBUGS</div>
+            <div id="splits-counter" class="lane-counter">0/0</div>
+          </div>
+          <div class="lane-stage">
+            <img id="splits-image" alt="Split debug cycle" />
+          </div>
+          <div id="splits-meta" class="lane-meta">LOADING…</div>
+        </article>
+
+        <article class="lane lane-parts">
+          <div class="lane-top">
+            <div class="lane-title">PARTS BUTTON AREA</div>
+            <div id="parts-counter" class="lane-counter">0/0</div>
+          </div>
+          <div class="lane-stage">
+            <img id="parts-image" alt="Parts and slices cycle" />
+          </div>
+          <div id="parts-meta" class="lane-meta">LOADING…</div>
+        </article>
+      </section>
+
+      <footer class="process-bottom">
+        <div id="proc-controls" class="controls">SPACE Pause/Play All • 1/2/3 Toggle Lane • ←/→ Step All • Q/W Page Speed • A/S Split Speed • Z/X Part Speed • +/- Global Speed • R Shuffle</div>
+      </footer>
+    </main>
+
+    <script src="./process.js" type="module"></script>
+  </body>
+</html>
