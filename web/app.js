@@ -1000,6 +1000,42 @@ function markInput() {
 }
 
 function imagePath(part, entry, basePath = state.basePath) {
+  const candidates = imagePathCandidates(part, entry, basePath);
+  return candidates[0] || "";
+}
+
+function normalizeBaseCandidates(base) {
+  const raw = String(base || "").trim();
+  if (!raw) {
+    return [];
+  }
+
+  const out = [];
+  const seen = new Set();
+
+  const add = (value) => {
+    const v = String(value || "").trim().replace(/\/+$/, "");
+    if (!v || seen.has(v)) {
+      return;
+    }
+    seen.add(v);
+    out.push(v);
+  };
+
+  const trimmed = raw.replace(/^\.?\//, "").replace(/^\/+/, "");
+  add(raw);
+  if (trimmed) {
+    add(`./${trimmed}`);
+    add(`/${trimmed}`);
+    add(`../${trimmed}`);
+    add(`/web/${trimmed}`);
+    add(`./web/${trimmed}`);
+  }
+
+  return out;
+}
+
+function imagePathCandidates(part, entry, basePath = state.basePath) {
   const { sourceTag, file } = splitPoolEntry(entry);
   let resolvedBase = basePath;
   if (sourceTag === SOURCE_TAG.smart) {
@@ -1007,7 +1043,31 @@ function imagePath(part, entry, basePath = state.basePath) {
   } else if (sourceTag === SOURCE_TAG.curated) {
     resolvedBase = state.poolSources.small || resolvedBase;
   }
-  return `${resolvedBase}/${part}/${encodeURIComponent(file)}`;
+
+  let baseCandidates = normalizeBaseCandidates(resolvedBase);
+  if (sourceTag === SOURCE_TAG.smart) {
+    baseCandidates = baseCandidates.concat(normalizeBaseCandidates(state.poolSources.large));
+    baseCandidates = baseCandidates.concat(normalizeBaseCandidates("./PARTS_SMART_LATEST"));
+  } else if (sourceTag === SOURCE_TAG.curated) {
+    baseCandidates = baseCandidates.concat(normalizeBaseCandidates(state.poolSources.small));
+    baseCandidates = baseCandidates.concat(normalizeBaseCandidates("./CURATED PARTS"));
+  } else {
+    baseCandidates = baseCandidates.concat(normalizeBaseCandidates(state.poolSources.large));
+    baseCandidates = baseCandidates.concat(normalizeBaseCandidates(state.poolSources.small));
+  }
+
+  const encoded = encodeURIComponent(file);
+  const out = [];
+  const seen = new Set();
+  for (const base of baseCandidates) {
+    const path = `${base}/${part}/${encoded}`.replace(/([^:]\/)\/+/g, "$1");
+    if (seen.has(path)) {
+      continue;
+    }
+    seen.add(path);
+    out.push(path);
+  }
+  return out;
 }
 
 function loadImage(url) {
@@ -1110,19 +1170,23 @@ async function loadPartImage(part) {
     return { img: null, metric: null, file };
   }
 
-  const src = imagePath(part, entry);
-  try {
-    const img = await loadImage(src);
-    cache.set(entry, img);
+  const srcCandidates = imagePathCandidates(part, entry);
+  for (const src of srcCandidates) {
+    try {
+      const img = await loadImage(src);
+      cache.set(entry, img);
 
-    const metric = analyzeInkBounds(img);
-    metricCache.set(entry, metric);
-
-    return { img, metric, file };
-  } catch {
-    state.missing[part].add(entry);
-    return { img: null, metric: null, file };
+      const metric = analyzeInkBounds(img);
+      metricCache.set(entry, metric);
+      state.missing[part].delete(entry);
+      return { img, metric, file };
+    } catch {
+      // Try the next candidate URL.
+    }
   }
+
+  state.missing[part].add(entry);
+  return { img: null, metric: null, file };
 }
 
 function computeLayout(selected, canvasSize) {
