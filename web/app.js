@@ -37,13 +37,13 @@ const state = {
     large: { head: [], torso: [], legs: [], feet: [] },
     small: { head: [], torso: [], legs: [], feet: [] },
   },
-  poolSources: { large: "../PARTS_SMART_LATEST", small: "../CURATED PARTS" },
+  poolSources: { large: "./PARTS_SMART_LATEST", small: "./CURATED PARTS" },
   files: { head: [], torso: [], legs: [], feet: [] },
   indices: { head: 0, torso: 0, legs: 0, feet: 0 },
   images: { head: new Map(), torso: new Map(), legs: new Map(), feet: new Map() },
   metrics: { head: new Map(), torso: new Map(), legs: new Map(), feet: new Map() },
   missing: { head: new Set(), torso: new Set(), legs: new Set(), feet: new Set() },
-  basePath: "../PARTS_SMART_LATEST",
+  basePath: "./PARTS_SMART_LATEST",
   poolMode: null,
   seen: new Set(),
   seenCounts: new Map(),
@@ -1944,8 +1944,8 @@ function preparePools(largeManifest, smallManifest) {
     state.files[part] = [];
   });
 
-  state.poolSources.large = state.manifests.large?.source || "../PARTS_SMART_LATEST";
-  state.poolSources.small = state.manifests.small?.source || "../CURATED PARTS";
+  state.poolSources.large = state.manifests.large?.source || "./PARTS_SMART_LATEST";
+  state.poolSources.small = state.manifests.small?.source || "./CURATED PARTS";
 }
 
 function openPoolGate() {
