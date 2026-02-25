@@ -93,6 +93,7 @@ function buildPathCandidates(path) {
 
   const debugPrefix = "DEBUG_PAGES_DROP/";
   const partsPrefix = "PARTS_SMART_LATEST/";
+  const curatedPrefix = "CURATED PARTS/";
   const rawDropPrefix = "processed_raw_drop_2_10_46/";
 
   if (raw.includes(debugPrefix)) {
@@ -109,8 +110,41 @@ function buildPathCandidates(path) {
     candidates.push(`../PARTS_SMART_LATEST/${tail}`);
     candidates.push(`/PARTS_SMART_LATEST/${tail}`);
     candidates.push(`./PARTS_SMART_LATEST/${tail}`);
+    // Fallback for deployments where PARTS_SMART_LATEST folder was flattened.
+    candidates.push(`./${tail}`);
+    candidates.push(`/${tail}`);
+    candidates.push(`../${tail}`);
+    candidates.push(`./web/${tail}`);
+    candidates.push(`/web/${tail}`);
     candidates.push(`../processed_raw_drop_2_10_46/parts_smart/${tail}`);
     candidates.push(`/processed_raw_drop_2_10_46/parts_smart/${tail}`);
+  }
+
+  if (raw.includes(curatedPrefix)) {
+    const tail = raw.split(curatedPrefix)[1];
+    candidates.push(`../CURATED PARTS/${tail}`);
+    candidates.push(`/CURATED PARTS/${tail}`);
+    candidates.push(`./CURATED PARTS/${tail}`);
+    // Fallback for deployments where CURATED PARTS folder was flattened.
+    candidates.push(`./${tail}`);
+    candidates.push(`/${tail}`);
+    candidates.push(`../${tail}`);
+    candidates.push(`./web/${tail}`);
+    candidates.push(`/web/${tail}`);
+
+    // Defensive fallback if curated subfolders were exported as "CURATED head", etc.
+    const slash = tail.indexOf("/");
+    if (slash > 0) {
+      const part = tail.slice(0, slash);
+      const rest = tail.slice(slash + 1);
+      candidates.push(`./CURATED ${part}/${rest}`);
+      candidates.push(`/CURATED ${part}/${rest}`);
+      candidates.push(`../CURATED ${part}/${rest}`);
+      candidates.push(`./web/CURATED ${part}/${rest}`);
+      candidates.push(`/web/CURATED ${part}/${rest}`);
+      candidates.push(`../CURATED PARTS/CURATED ${part}/${rest}`);
+      candidates.push(`/CURATED PARTS/CURATED ${part}/${rest}`);
+    }
   }
 
   if (raw.includes(rawDropPrefix)) {

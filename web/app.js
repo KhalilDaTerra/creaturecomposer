@@ -1014,7 +1014,11 @@ function normalizeBaseCandidates(base) {
   const seen = new Set();
 
   const add = (value) => {
-    const v = String(value || "").trim().replace(/\/+$/, "");
+    const rawValue = String(value || "").trim();
+    if (!rawValue) {
+      return;
+    }
+    const v = rawValue === "/" ? "/" : rawValue.replace(/\/+$/, "");
     if (!v || seen.has(v)) {
       return;
     }
@@ -1035,6 +1039,32 @@ function normalizeBaseCandidates(base) {
   return out;
 }
 
+function dedupeStrings(values) {
+  const out = [];
+  const seen = new Set();
+  values.forEach((value) => {
+    const v = String(value || "").trim();
+    if (!v || seen.has(v)) {
+      return;
+    }
+    seen.add(v);
+    out.push(v);
+  });
+  return out;
+}
+
+function buildAssetUrl(base, part, file) {
+  const encoded = encodeURIComponent(file);
+  const b = String(base || "").trim();
+  if (!b || b === ".") {
+    return `./${part}/${encoded}`;
+  }
+  if (b === "/") {
+    return `/${part}/${encoded}`;
+  }
+  return `${b.replace(/\/+$/, "")}/${part}/${encoded}`.replace(/([^:]\/)\/+/g, "$1");
+}
+
 function imagePathCandidates(part, entry, basePath = state.basePath) {
   const { sourceTag, file } = splitPoolEntry(entry);
   let resolvedBase = basePath;
@@ -1044,23 +1074,34 @@ function imagePathCandidates(part, entry, basePath = state.basePath) {
     resolvedBase = state.poolSources.small || resolvedBase;
   }
 
-  let baseCandidates = normalizeBaseCandidates(resolvedBase);
+  let baseCandidates = [...normalizeBaseCandidates(resolvedBase)];
   if (sourceTag === SOURCE_TAG.smart) {
     baseCandidates = baseCandidates.concat(normalizeBaseCandidates(state.poolSources.large));
     baseCandidates = baseCandidates.concat(normalizeBaseCandidates("./PARTS_SMART_LATEST"));
+    baseCandidates = baseCandidates.concat(normalizeBaseCandidates("/PARTS_SMART_LATEST"));
+    baseCandidates = baseCandidates.concat(normalizeBaseCandidates("./web/PARTS_SMART_LATEST"));
+    baseCandidates = baseCandidates.concat(normalizeBaseCandidates("/web/PARTS_SMART_LATEST"));
   } else if (sourceTag === SOURCE_TAG.curated) {
     baseCandidates = baseCandidates.concat(normalizeBaseCandidates(state.poolSources.small));
     baseCandidates = baseCandidates.concat(normalizeBaseCandidates("./CURATED PARTS"));
+    baseCandidates = baseCandidates.concat(normalizeBaseCandidates("/CURATED PARTS"));
+    baseCandidates = baseCandidates.concat(normalizeBaseCandidates("./web/CURATED PARTS"));
+    baseCandidates = baseCandidates.concat(normalizeBaseCandidates("/web/CURATED PARTS"));
   } else {
     baseCandidates = baseCandidates.concat(normalizeBaseCandidates(state.poolSources.large));
     baseCandidates = baseCandidates.concat(normalizeBaseCandidates(state.poolSources.small));
   }
+  // Fallback for deployments where the top source folder is missing and part folders are flattened.
+  baseCandidates = baseCandidates.concat(normalizeBaseCandidates("."));
+  baseCandidates = baseCandidates.concat(normalizeBaseCandidates("./web"));
+  baseCandidates = baseCandidates.concat(normalizeBaseCandidates("/web"));
+  baseCandidates = baseCandidates.concat(normalizeBaseCandidates("/"));
+  baseCandidates = dedupeStrings(baseCandidates);
 
-  const encoded = encodeURIComponent(file);
   const out = [];
   const seen = new Set();
   for (const base of baseCandidates) {
-    const path = `${base}/${part}/${encoded}`.replace(/([^:]\/)\/+/g, "$1");
+    const path = buildAssetUrl(base, part, file);
     if (seen.has(path)) {
       continue;
     }
@@ -1068,6 +1109,77 @@ function imagePathCandidates(part, entry, basePath = state.basePath) {
     out.push(path);
   }
   return out;
+}
+
+async function probeAssetUrl(url, timeoutMs = 1400) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => {
+    controller.abort();
+  }, timeoutMs);
+  try {
+    const res = await fetch(url, { method: "HEAD", cache: "no-store", signal: controller.signal });
+    return res.ok;
+  } catch {
+    return false;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function firstManifestSample(manifest) {
+  for (const part of PARTS) {
+    const items = Array.isArray(manifest?.parts?.[part]) ? manifest.parts[part] : [];
+    if (!items.length) {
+      continue;
+    }
+    const first = items[0];
+    const file = typeof first === "string" ? first : first?.file;
+    if (file) {
+      return { part, file };
+    }
+  }
+  return null;
+}
+
+function extractBaseFromAssetUrl(url, part, file) {
+  const suffix = `/${part}/${encodeURIComponent(file)}`;
+  if (!String(url || "").endsWith(suffix)) {
+    return null;
+  }
+  const base = url.slice(0, -suffix.length);
+  if (!base) {
+    return "/";
+  }
+  return base;
+}
+
+async function resolvePoolSourcePath(sourceKey) {
+  const sourceTag = sourceKey === "large" ? SOURCE_TAG.smart : SOURCE_TAG.curated;
+  const manifest = sourceKey === "large" ? state.manifests.large : state.manifests.small;
+  const fallbackBase = state.poolSources[sourceKey];
+  const sample = firstManifestSample(manifest);
+  if (!sample) {
+    return fallbackBase;
+  }
+
+  const entry = makePoolEntry(sample.file, sourceTag);
+  const candidates = imagePathCandidates(sample.part, entry, fallbackBase);
+
+  for (const url of candidates) {
+    if (await probeAssetUrl(url)) {
+      return extractBaseFromAssetUrl(url, sample.part, sample.file) || fallbackBase;
+    }
+  }
+  return fallbackBase;
+}
+
+async function resolvePoolSources() {
+  const [largeSource, smallSource] = await Promise.all([
+    resolvePoolSourcePath("large"),
+    resolvePoolSourcePath("small"),
+  ]);
+  state.poolSources.large = largeSource || state.poolSources.large;
+  state.poolSources.small = smallSource || state.poolSources.small;
 }
 
 function loadImage(url) {
@@ -2071,6 +2183,7 @@ async function init() {
     }
 
     preparePools(manifest, oldManifest);
+    await resolvePoolSources();
 
     canvas.width = state.config.canvas;
     canvas.height = state.config.canvas;
