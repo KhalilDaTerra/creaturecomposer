@@ -409,7 +409,10 @@ function syncCurrentSetMarker() {
 }
 
 function setAnchor(fromHumanInput = true) {
-  if (!state.anchorIndices) {
+  if (!state.cohesiveSets.length) {
+    buildCohesiveSetsFromCurrentPool();
+  }
+  if (!state.cohesiveSets.length) {
     flashStatus("NO ORIGINAL", 700);
     return;
   }
@@ -417,17 +420,24 @@ function setAnchor(fromHumanInput = true) {
   if (fromHumanInput) {
     pushUndoSnapshot();
   }
+  let nextCursor = Math.floor(Math.random() * state.cohesiveSets.length);
+  if (state.cohesiveSets.length > 1 && nextCursor === state.cohesiveSetCursor) {
+    nextCursor = (nextCursor + 1 + Math.floor(Math.random() * (state.cohesiveSets.length - 1))) % state.cohesiveSets.length;
+  }
+  const set = state.cohesiveSets[nextCursor];
   PARTS.forEach((part) => {
-    const count = state.files[part].length;
-    state.indices[part] = wrapIndex(state.anchorIndices[part] ?? 0, count);
+    const idx = state.files[part].indexOf(set.entries[part]);
+    if (idx >= 0) {
+      state.indices[part] = idx;
+    }
   });
-  state.cohesiveSetCursor = -1;
-  state.currentSetNumber = null;
-  state.currentSetId = null;
+  state.cohesiveSetCursor = nextCursor;
+  state.currentSetNumber = set.number;
+  state.currentSetId = set.id;
   if (fromHumanInput) {
     markInput();
   }
-  flashStatus("ORIGINAL", 800);
+  flashStatus(`ORIGINAL ${set.id}`, 800);
   redraw();
 }
 

@@ -15,5 +15,5 @@ Then open:
 ## Primary Controls
 
 - `Randomize`: randomizes unlocked parts only.
-- `Original`: restores the initial creature for the selected pool.
+- `Original`: jumps to a cohesive original matched set (former Set behavior).
 - `Back`: steps back to the previous state (disabled when no history).
