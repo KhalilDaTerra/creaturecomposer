@@ -299,7 +299,7 @@ function applySnapshot(snapshot, fromHumanInput = true) {
 
 function undoAction(fromHumanInput = true) {
   if (state.historyUndo.length === 0) {
-    flashStatus("NO UNDO", 600);
+    flashStatus("NO BACK", 600);
     return;
   }
   const current = makeSnapshot();
@@ -409,55 +409,30 @@ function syncCurrentSetMarker() {
 }
 
 function setAnchor(fromHumanInput = true) {
-  if (!state.cohesiveSets.length) {
-    buildCohesiveSetsFromCurrentPool();
-  }
-  if (!state.cohesiveSets.length) {
-    flashStatus("NO SET", 700);
+  if (!state.anchorIndices) {
+    flashStatus("NO ORIGINAL", 700);
     return;
   }
 
   if (fromHumanInput) {
     pushUndoSnapshot();
   }
-  let nextCursor = Math.floor(Math.random() * state.cohesiveSets.length);
-  if (state.cohesiveSets.length > 1 && nextCursor === state.cohesiveSetCursor) {
-    nextCursor = (nextCursor + 1 + Math.floor(Math.random() * (state.cohesiveSets.length - 1))) % state.cohesiveSets.length;
-  }
-  const set = state.cohesiveSets[nextCursor];
   PARTS.forEach((part) => {
-    const idx = state.files[part].indexOf(set.entries[part]);
-    if (idx >= 0) {
-      state.indices[part] = idx;
-    }
+    const count = state.files[part].length;
+    state.indices[part] = wrapIndex(state.anchorIndices[part] ?? 0, count);
   });
-  state.cohesiveSetCursor = nextCursor;
-  state.currentSetNumber = set.number;
-  state.currentSetId = set.id;
+  state.cohesiveSetCursor = -1;
+  state.currentSetNumber = null;
+  state.currentSetId = null;
   if (fromHumanInput) {
     markInput();
   }
-  flashStatus(`SET ${set.id}`, 800);
+  flashStatus("ORIGINAL", 800);
   redraw();
 }
 
 function mutateUnlocked(fromHumanInput = true) {
-  const unlocked = PARTS.filter((part) => !state.partLocks[part]);
-  if (unlocked.length === 0) {
-    flashStatus("ALL LOCKED", 700);
-    return;
-  }
-
-  if (fromHumanInput) {
-    pushUndoSnapshot();
-  }
-  unlocked.forEach((part) => {
-    randomizePartToDifferentValue(part);
-  });
-  if (fromHumanInput) {
-    markInput();
-  }
-  redraw();
+  randomizeAll(fromHumanInput);
 }
 
 function togglePartLock(part, fromHumanInput = true) {
@@ -1937,7 +1912,7 @@ function attachUI() {
 
   if (mutateUnlockedBtn) {
     mutateUnlockedBtn.addEventListener("click", () => {
-      mutateUnlocked(true);
+      randomizeAll(true);
     });
   }
 
@@ -1978,7 +1953,7 @@ function attachUI() {
 
     if (key === "m") {
       evt.preventDefault();
-      mutateUnlocked(true);
+      randomizeAll(true);
       return;
     }
 
@@ -2090,7 +2065,7 @@ function setPool(mode) {
   state.cohesiveSetCursor = -1;
   state.currentSetNumber = null;
   state.currentSetId = null;
-  state.anchorIndices = null;
+  state.anchorIndices = cloneIndices();
   state.historyUndo = [];
   state.historyRedo = [];
   buildCohesiveSetsFromCurrentPool();

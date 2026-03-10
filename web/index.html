@@ -4,6 +4,22 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Creature MVP</title>
+    <meta name="description" content="Build and submit handcrafted creatures." />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Creature MVP" />
+    <meta property="og:description" content="Build and submit handcrafted creatures." />
+    <meta property="og:image" content="./thumbnail.jpg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Creature MVP" />
+    <meta name="twitter:description" content="Build and submit handcrafted creatures." />
+    <meta name="twitter:image" content="./thumbnail.jpg" />
+    <link rel="icon" type="image/x-icon" href="./favicon.ico" />
+    <link rel="icon" type="image/png" sizes="32x32" href="./favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="./favicon-16x16.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="./apple-touch-icon.png" />
+    <link rel="manifest" href="./site.webmanifest" />
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
@@ -79,6 +95,11 @@
       </section>
 
       <section class="meta" aria-label="Information">
+        <div class="action-row" aria-label="Primary creature controls">
+          <button id="mutate-unlocked" class="action-btn action-btn-primary" type="button" aria-label="Randomize unlocked parts">RANDOMIZE</button>
+          <button id="set-anchor" class="action-btn" type="button" aria-label="Restore original creature">ORIGINAL</button>
+          <button id="undo-action" class="action-btn" type="button" aria-label="Go back one step">BACK</button>
+        </div>
         <div class="stats-panel" id="stats-panel">
           <div class="data-label">DATA</div>
           <div class="stats-row">
@@ -107,19 +128,13 @@
             <span id="stat-corr-ul">UPPER~LOWER r=--</span>
           </div>
         </div>
-        <div class="action-row" aria-label="Action controls">
-          <button id="set-anchor" class="action-btn" type="button">SET</button>
-          <button id="mutate-unlocked" class="action-btn" type="button">MUTATE</button>
-          <button id="undo-action" class="action-btn" type="button">UNDO</button>
-          <button id="redo-action" class="action-btn" type="button">REDO</button>
-        </div>
         <div class="lock-row" aria-label="Part locks">
           <button class="lock-btn" type="button" data-lock-part="head">H</button>
           <button class="lock-btn" type="button" data-lock-part="torso">T</button>
           <button class="lock-btn" type="button" data-lock-part="legs">L</button>
           <button class="lock-btn" type="button" data-lock-part="feet">F</button>
         </div>
-        <div id="info">Keys: Q/W Head, A/S Torso, Z/X Legs, O/P Feet, R Randomize, M Mutate, G Set, U Undo, Y Redo, 1-4 Lock, B Back, C Submit, V Export Data, F Fullscreen</div>
+        <div id="info">Keys: Q/W Head, A/S Torso, Z/X Legs, O/P Feet, R Randomize, G Original, U Back, Y Redo, 1-4 Lock, B Back To Pool, C Submit, V Export Data, F Fullscreen</div>
         <div id="errors" class="errors" aria-live="polite"></div>
         <div class="go-back-row">
           <button id="go-back" class="go-back-btn" type="button" aria-label="Go back">🔙 GO BACK</button>
