@@ -29,6 +29,7 @@ const SUBMISSION_LOG_KEY = "creature-submissions-v1";
 const SUBMISSION_LIMIT = 1500;
 const VARIATION_LOG_KEY = "creature-variation-log-v1";
 const VARIATION_LIMIT = 1800;
+const LIVE_SUBMISSIONS_ENDPOINT = "/api/submissions";
 
 const state = {
   config: null,
@@ -1734,16 +1735,204 @@ function buildVariationLogCsv(entries) {
   return `${lines.join("\n")}\n`;
 }
 
-function createGalleryThumbDataUrl() {
-  const thumbSize = 192;
+function createGalleryThumbDataUrlFromCanvas(sourceCanvas) {
+  const thumbSize = 320;
   const thumb = document.createElement("canvas");
   thumb.width = thumbSize;
   thumb.height = thumbSize;
   const tx = thumb.getContext("2d");
   tx.fillStyle = "#fff";
   tx.fillRect(0, 0, thumbSize, thumbSize);
-  tx.drawImage(canvas, 0, 0, thumbSize, thumbSize);
-  return thumb.toDataURL("image/jpeg", 0.62);
+
+  const origin = sourceCanvas || canvas;
+  tx.drawImage(origin, 0, 0, thumbSize, thumbSize);
+  return thumb.toDataURL("image/jpeg", 0.82);
+}
+
+function canvasToBlob(sourceCanvas, type = "image/png", quality) {
+  return new Promise((resolve, reject) => {
+    if (!sourceCanvas || typeof sourceCanvas.toBlob !== "function") {
+      reject(new Error("Canvas export is unavailable."));
+      return;
+    }
+
+    sourceCanvas.toBlob((blob) => {
+      if (!blob) {
+        reject(new Error("Canvas export returned an empty blob."));
+        return;
+      }
+      resolve(blob);
+    }, type, quality);
+  });
+}
+
+function submissionCategoryLabel() {
+  return state.currentSetId ? "Originals" : "Hybrids";
+}
+
+function submissionPoolLabel() {
+  if (state.poolMode === "small") {
+    return "Curated";
+  }
+  if (state.poolMode === "large") {
+    return "Expanded";
+  }
+  return "Unknown";
+}
+
+function buildSubmissionEntry(filename) {
+  const profile = computeGeneratedProfile();
+  const uniqueness = computeUniquenessMetrics();
+  const now = Date.now();
+
+  return {
+    id: `local-${now}-${seedFromState()}`,
+    at: now,
+    filename,
+    seed: seedFromState(),
+    name: profile.name,
+    creatureNumber: creatureIndexFromState().toString(),
+    setNumber: state.currentSetNumber,
+    setId: state.currentSetId,
+    setLabel: uniqueness.setLabel,
+    poolMode: state.poolMode,
+    poolLabel: submissionPoolLabel(),
+    category: submissionCategoryLabel(),
+    partIds: {
+      head: partIdFromSelection("head"),
+      torso: partIdFromSelection("torso"),
+      legs: partIdFromSelection("legs"),
+      feet: partIdFromSelection("feet"),
+    },
+    rarity: uniqueness.rarity,
+    distance: uniqueness.distance,
+    generation: uniqueness.generation,
+  };
+}
+
+function createSubmissionFrameCanvas(entry) {
+  const exportCanvas = document.createElement("canvas");
+  exportCanvas.width = 1200;
+  exportCanvas.height = 1560;
+  const exportCtx = exportCanvas.getContext("2d");
+
+  const w = exportCanvas.width;
+  const h = exportCanvas.height;
+  const outerPad = 56;
+  const titleHeight = 168;
+  const artBoxX = 138;
+  const artBoxY = titleHeight;
+  const artBoxW = w - artBoxX * 2;
+  const artBoxH = 860;
+
+  exportCtx.fillStyle = "#ffffff";
+  exportCtx.fillRect(0, 0, w, h);
+
+  exportCtx.strokeStyle = "#111111";
+  exportCtx.lineWidth = 10;
+  exportCtx.strokeRect(outerPad, outerPad, w - outerPad * 2, h - outerPad * 2);
+
+  exportCtx.fillStyle = "#f80000";
+  exportCtx.fillRect(outerPad + 16, outerPad + 16, w - (outerPad + 16) * 2, 18);
+
+  exportCtx.fillStyle = "#111111";
+  exportCtx.textAlign = "center";
+  exportCtx.textBaseline = "alphabetic";
+  exportCtx.font = '700 70px "Courier New", Courier, monospace';
+  exportCtx.fillText(String(entry.name || "CREATURE").toUpperCase(), w / 2, 132);
+
+  exportCtx.font = '400 24px "Courier New", Courier, monospace';
+  exportCtx.fillStyle = "#666666";
+  exportCtx.fillText("CREATURE COMPOSER ARCHIVE", w / 2, 76);
+
+  exportCtx.fillStyle = "#ffffff";
+  exportCtx.fillRect(artBoxX, artBoxY, artBoxW, artBoxH);
+  exportCtx.strokeStyle = "#111111";
+  exportCtx.lineWidth = 6;
+  exportCtx.strokeRect(artBoxX, artBoxY, artBoxW, artBoxH);
+
+  exportCtx.fillStyle = "#faf7f2";
+  exportCtx.fillRect(artBoxX + 24, artBoxY + 24, artBoxW - 48, artBoxH - 48);
+  exportCtx.strokeStyle = "#d8d1c6";
+  exportCtx.lineWidth = 2;
+  exportCtx.strokeRect(artBoxX + 24, artBoxY + 24, artBoxW - 48, artBoxH - 48);
+
+  const innerPad = 78;
+  const artTargetX = artBoxX + innerPad;
+  const artTargetY = artBoxY + innerPad;
+  const artTargetW = artBoxW - innerPad * 2;
+  const artTargetH = artBoxH - innerPad * 2;
+  const scale = Math.min(artTargetW / canvas.width, artTargetH / canvas.height);
+  const drawW = canvas.width * scale;
+  const drawH = canvas.height * scale;
+  const drawX = artTargetX + (artTargetW - drawW) / 2;
+  const drawY = artTargetY + (artTargetH - drawH) / 2;
+  exportCtx.drawImage(canvas, drawX, drawY, drawW, drawH);
+
+  exportCtx.fillStyle = "#111111";
+  exportCtx.font = '700 30px "Courier New", Courier, monospace';
+  exportCtx.textAlign = "left";
+  exportCtx.fillText(String(entry.category || "HYBRIDS").toUpperCase(), 120, 1168);
+
+  exportCtx.textAlign = "right";
+  exportCtx.fillText(String(entry.poolLabel || "EXPANDED").toUpperCase(), w - 120, 1168);
+
+  exportCtx.strokeStyle = "#111111";
+  exportCtx.lineWidth = 2;
+  exportCtx.beginPath();
+  exportCtx.moveTo(120, 1198);
+  exportCtx.lineTo(w - 120, 1198);
+  exportCtx.stroke();
+
+  exportCtx.fillStyle = "#111111";
+  exportCtx.textAlign = "left";
+  exportCtx.font = '400 28px "Courier New", Courier, monospace';
+  exportCtx.fillText(`SEED ${entry.seed || "--------"}`, 120, 1260);
+  exportCtx.fillText(`SET ${entry.setLabel || "--"}`, 120, 1310);
+  exportCtx.fillText(`PARTS ${entry.partIds?.head || "--"}-${entry.partIds?.torso || "--"}-${entry.partIds?.legs || "--"}-${entry.partIds?.feet || "--"}`, 120, 1360);
+
+  exportCtx.textAlign = "right";
+  exportCtx.fillText(`RARITY ${Math.round(Number(entry.rarity) || 0)}%`, w - 120, 1260);
+  exportCtx.fillText(`DISTANCE ${Math.round(Number(entry.distance) || 0)}%`, w - 120, 1310);
+  exportCtx.fillText(`GENERATION ${Math.round(Number(entry.generation) || 0)}`, w - 120, 1360);
+
+  exportCtx.fillStyle = "#666666";
+  exportCtx.font = '400 22px "Courier New", Courier, monospace';
+  exportCtx.textAlign = "center";
+  exportCtx.fillText(String(entry.filename || "CreatureComposer-creature.png"), w / 2, 1480);
+
+  return exportCanvas;
+}
+
+async function submitLiveGalleryEntry(entry, imageBlob) {
+  const formData = new FormData();
+  formData.append("image", imageBlob, entry.filename);
+  formData.append("name", entry.name || "CREATURE");
+  formData.append("filename", entry.filename || "CreatureComposer-creature.png");
+  formData.append("seed", entry.seed || "--------");
+  formData.append("category", entry.category || "Hybrids");
+  formData.append("poolMode", entry.poolMode || "");
+  formData.append("poolLabel", entry.poolLabel || "");
+  formData.append("creatureNumber", entry.creatureNumber || "");
+  formData.append("setNumber", entry.setNumber == null ? "" : String(entry.setNumber));
+  formData.append("setId", entry.setId || "");
+  formData.append("setLabel", entry.setLabel || "--");
+  formData.append("partIds", JSON.stringify(entry.partIds || {}));
+  formData.append("rarity", String(entry.rarity ?? ""));
+  formData.append("distance", String(entry.distance ?? ""));
+  formData.append("generation", String(entry.generation ?? ""));
+
+  const res = await fetch(LIVE_SUBMISSIONS_ENDPOINT, {
+    method: "POST",
+    body: formData,
+  });
+
+  if (!res.ok) {
+    throw new Error(`Live submit failed: ${res.status}`);
+  }
+
+  const data = await res.json();
+  return data?.submission || null;
 }
 
 function appendSubmissionEntry(entry) {
@@ -1755,28 +1944,11 @@ function appendSubmissionEntry(entry) {
   return result;
 }
 
-function appendGalleryEntry(filename) {
-  const baseEntry = {
-    id: `${Date.now()}-${seedFromState()}`,
-    at: Date.now(),
-    filename,
-    seed: seedFromState(),
-    name: creatureNameEl ? creatureNameEl.textContent : "CREATURE",
-    creatureNumber: creatureIndexFromState().toString(),
-    setNumber: state.currentSetNumber,
-    setId: state.currentSetId,
-    poolMode: state.poolMode,
-  };
+function appendGalleryEntry(entry, image) {
+  const baseEntry = entry || buildSubmissionEntry("CreatureComposer-creature.png");
   const submissionResult = appendSubmissionEntry(baseEntry);
 
-  let image = "";
-  try {
-    image = createGalleryThumbDataUrl();
-  } catch {
-    image = "";
-  }
-
-  const galleryEntry = { ...baseEntry, image };
+  const galleryEntry = { ...baseEntry, image: image || "" };
   const next = [galleryEntry, ...readGalleryEntries()].slice(0, GALLERY_LIMIT);
   const galleryResult = writeGalleryEntries(next);
 
@@ -1834,54 +2006,56 @@ function exportVariationData() {
   flashStatus("DATA EXPORTED", 900);
 }
 
-function submitCreature() {
+async function submitCreature() {
   const rawName = creatureNameEl ? creatureNameEl.textContent : "creature";
-  const filename = `${safeNameToken(rawName)}-${seedFromState().toLowerCase()}-${submitTimestamp()}.png`;
-  const submitLog = appendGalleryEntry(filename);
+  const filename = `CreatureComposer-${safeNameToken(rawName)}.png`;
+  const entry = buildSubmissionEntry(filename);
   emitSyncSnapshot();
 
-  if (submitLog.submissionLogged || submitLog.galleryLogged) {
+  let framedCanvas;
+  let framedBlob;
+  let previewImage = "";
+
+  try {
+    framedCanvas = createSubmissionFrameCanvas(entry);
+    previewImage = createGalleryThumbDataUrlFromCanvas(framedCanvas);
+    framedBlob = await canvasToBlob(framedCanvas, "image/png");
+  } catch {
+    setError("Submit failed while creating the saved artwork.");
+    flashStatus("SUBMIT FAILED", 950);
+    return;
+  }
+
+  let liveEntry = null;
+  try {
+    liveEntry = await submitLiveGalleryEntry(entry, framedBlob);
+  } catch {
+    liveEntry = null;
+  }
+
+  const cachedEntry = { ...entry, ...(liveEntry || {}) };
+  const submitLog = appendGalleryEntry(cachedEntry, previewImage);
+
+  if (liveEntry || submitLog.submissionLogged || submitLog.galleryLogged) {
     flashStatus("SUBMITTED", 900);
   } else {
-    setError("Submit could not be saved. Storage is full.");
+    setError("Submit could not be saved.");
     flashStatus("SUBMIT FAILED", 950);
   }
 
-  const reportCaptureFailure = () => {
-    if (submitLog.submissionLogged || submitLog.galleryLogged) {
-      setError("Entry saved, but image download failed.");
-    } else {
-      setError("Submit failed while capturing image.");
-    }
-  };
-
   try {
-    if (typeof canvas.toBlob === "function") {
-      canvas.toBlob((blob) => {
-        if (!blob) {
-          reportCaptureFailure();
-          return;
-        }
-        triggerBlobDownload(blob, filename);
-        if (submitLog.submissionLogged || submitLog.galleryLogged) {
-          clearError();
-        }
-      }, "image/png");
-      return;
-    }
-
-    const dataUrl = canvas.toDataURL("image/png");
-    const link = document.createElement("a");
-    link.href = dataUrl;
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    if (submitLog.submissionLogged || submitLog.galleryLogged) {
+    triggerBlobDownload(framedBlob, filename);
+    if (liveEntry) {
       clearError();
+    } else if (submitLog.submissionLogged || submitLog.galleryLogged) {
+      setError("Saved locally. Live wall is currently unavailable.");
     }
   } catch {
-    reportCaptureFailure();
+    if (liveEntry || submitLog.submissionLogged || submitLog.galleryLogged) {
+      setError("Saved, but image download failed.");
+    } else {
+      setError("Submit failed while downloading the saved artwork.");
+    }
   }
 }
 

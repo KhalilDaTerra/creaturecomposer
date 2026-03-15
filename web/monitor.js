@@ -1,6 +1,7 @@
 const SYNC_CHANNEL_NAME = "creature-sync-v1";
 const SYNC_LAST_KEY = "creature-sync-last-v1";
 const SUBMISSION_LOG_KEY = "creature-submissions-v1";
+const LIVE_SUBMISSIONS_ENDPOINT = "/api/submissions";
 const MAX_SUBMIT_ROWS = 8;
 const MAX_PHASE_POINTS = 140;
 
@@ -73,6 +74,19 @@ function loadLastSnapshot() {
 function loadSubmissionEntries() {
   const parsed = loadJson(SUBMISSION_LOG_KEY);
   return Array.isArray(parsed) ? parsed : [];
+}
+
+async function fetchLiveSubmissionEntries() {
+  const res = await fetch(`${LIVE_SUBMISSIONS_ENDPOINT}?limit=${MAX_SUBMIT_ROWS}`, {
+    cache: "no-store",
+  });
+
+  if (!res.ok) {
+    throw new Error(`Live submissions fetch failed: ${res.status}`);
+  }
+
+  const data = await res.json();
+  return Array.isArray(data?.submissions) ? data.submissions : [];
 }
 
 function computeConceptModel(payload) {
@@ -287,8 +301,14 @@ function renderSubmissionFeed(entries) {
   refs.submitList.innerHTML = rows || '<div class="submit-row"><span class="submit-time">--:--:--</span><span class="submit-name">NO SUBMISSIONS YET</span><span class="submit-seed">--------</span></div>';
 }
 
-function refreshSubmissionFeed() {
-  renderSubmissionFeed(loadSubmissionEntries());
+async function refreshSubmissionFeed() {
+  try {
+    const liveEntries = await fetchLiveSubmissionEntries();
+    renderSubmissionFeed(liveEntries);
+    return;
+  } catch {
+    renderSubmissionFeed(loadSubmissionEntries());
+  }
 }
 
 const chan = "BroadcastChannel" in window ? new BroadcastChannel(SYNC_CHANNEL_NAME) : null;
