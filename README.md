@@ -33,3 +33,8 @@ Required Cloudflare bindings:
 - `SUBMISSIONS_IMAGES`: R2 bucket binding
 
 The submit flow falls back to local storage if those bindings are not configured, so local/static previews still work.
+
+## Sound
+
+Procedural UI sound is powered by the Web Audio API in `web/soundEngine.js`.
+Sound requires explicit user interaction to start because browsers block autoplay until a gesture unlocks the audio context.

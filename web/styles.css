@@ -447,6 +447,32 @@ body.hide-cursor * {
   border-color: #c8c8c8;
 }
 
+.sound-row {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  margin-top: 2px;
+}
+
+.sound-toggle {
+  min-height: 44px;
+  border: 1px solid #111;
+  background: #fff;
+  color: #111;
+  border-radius: 999px;
+  padding: 10px 16px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  touch-action: manipulation;
+}
+
+.sound-toggle.active {
+  background: #111;
+  color: #fff;
+}
+
 .lock-row {
   width: 100%;
   display: flex;
@@ -547,6 +573,11 @@ body.hide-cursor * {
     font-size: 0.78rem;
     min-height: 46px;
     padding: 10px 12px;
+  }
+
+  .sound-toggle {
+    width: 100%;
+    justify-content: center;
   }
 
   .combo-tracker {

@@ -1,3 +1,5 @@
+import { SoundEngine } from "./soundEngine.js";
+
 const PARTS = ["head", "torso", "legs", "feet"];
 const PART_ABBR = { head: "H", torso: "T", legs: "L", feet: "F" };
 
@@ -30,6 +32,7 @@ const SUBMISSION_LIMIT = 1500;
 const VARIATION_LOG_KEY = "creature-variation-log-v1";
 const VARIATION_LIMIT = 1800;
 const LIVE_SUBMISSIONS_ENDPOINT = "/api/submissions";
+const MATCH_ALL_SOUND_COOLDOWN_MS = 1500;
 
 const state = {
   config: null,
@@ -59,8 +62,12 @@ const state = {
   currentSetNumber: null,
   currentSetId: null,
   anchorIndices: null,
+  originalIndices: null,
   historyUndo: [],
   historyRedo: [],
+  matchFlags: { head: false, torso: false, legs: false, feet: false },
+  matchAllActive: false,
+  lastMatchAllSoundAt: 0,
   locked: false,
   autoRandomizedSinceLastInput: false,
   timers: {
@@ -126,7 +133,9 @@ const setAnchorBtn = document.getElementById("set-anchor");
 const mutateUnlockedBtn = document.getElementById("mutate-unlocked");
 const undoBtn = document.getElementById("undo-action");
 const redoBtn = document.getElementById("redo-action");
+const soundToggleBtn = document.getElementById("sound-toggle");
 const lockButtons = Array.from(document.querySelectorAll("button.lock-btn[data-lock-part]"));
+const sound = new SoundEngine({ volume: 0.15, stepMinIntervalMs: 32 });
 
 function clamp(n, min, max) {
   return Math.max(min, Math.min(max, n));
@@ -265,6 +274,16 @@ function updateHistoryButtons() {
   }
 }
 
+function updateSoundToggle() {
+  if (!soundToggleBtn) {
+    return;
+  }
+  const active = sound.isEnabled();
+  soundToggleBtn.textContent = active ? "SOUND ON" : "SOUND OFF";
+  soundToggleBtn.classList.toggle("active", active);
+  soundToggleBtn.setAttribute("aria-pressed", active ? "true" : "false");
+}
+
 function pushUndoSnapshot() {
   const snap = makeSnapshot();
   const last = state.historyUndo[state.historyUndo.length - 1];
@@ -292,6 +311,7 @@ function applySnapshot(snapshot, fromHumanInput = true) {
   state.currentSetNumber = snapshot.currentSetNumber ?? null;
   state.currentSetId = snapshot.currentSetId ?? null;
   updateLockButtons();
+  syncOriginalMatches(fromHumanInput);
   if (fromHumanInput) {
     markInput();
   }
@@ -300,8 +320,14 @@ function applySnapshot(snapshot, fromHumanInput = true) {
 
 function undoAction(fromHumanInput = true) {
   if (state.historyUndo.length === 0) {
+    if (fromHumanInput) {
+      sound.nope();
+    }
     flashStatus("NO BACK", 600);
     return;
+  }
+  if (fromHumanInput) {
+    sound.back();
   }
   const current = makeSnapshot();
   const previous = state.historyUndo.pop();
@@ -409,6 +435,42 @@ function syncCurrentSetMarker() {
   }
 }
 
+function setOriginalMatchStateSilently() {
+  if (!state.originalIndices) {
+    return;
+  }
+  let allMatched = true;
+  PARTS.forEach((part) => {
+    const isMatch = state.indices[part] === state.originalIndices[part];
+    state.matchFlags[part] = isMatch;
+    allMatched = allMatched && isMatch;
+  });
+  state.matchAllActive = allMatched;
+}
+
+function syncOriginalMatches(emitSound = true) {
+  if (!state.originalIndices) {
+    return;
+  }
+
+  let allMatched = true;
+  PARTS.forEach((part) => {
+    const isMatch = state.indices[part] === state.originalIndices[part];
+    if (emitSound && isMatch && !state.matchFlags[part]) {
+      sound.matchPart(part);
+    }
+    state.matchFlags[part] = isMatch;
+    allMatched = allMatched && isMatch;
+  });
+
+  const now = performance.now();
+  if (emitSound && allMatched && !state.matchAllActive && now - state.lastMatchAllSoundAt > MATCH_ALL_SOUND_COOLDOWN_MS) {
+    sound.matchAll();
+    state.lastMatchAllSoundAt = now;
+  }
+  state.matchAllActive = allMatched;
+}
+
 function setAnchor(fromHumanInput = true) {
   if (!state.cohesiveSets.length) {
     buildCohesiveSetsFromCurrentPool();
@@ -420,6 +482,7 @@ function setAnchor(fromHumanInput = true) {
 
   if (fromHumanInput) {
     pushUndoSnapshot();
+    sound.original();
   }
   let nextCursor = Math.floor(Math.random() * state.cohesiveSets.length);
   if (state.cohesiveSets.length > 1 && nextCursor === state.cohesiveSetCursor) {
@@ -435,6 +498,7 @@ function setAnchor(fromHumanInput = true) {
   state.cohesiveSetCursor = nextCursor;
   state.currentSetNumber = set.number;
   state.currentSetId = set.id;
+  syncOriginalMatches(fromHumanInput);
   if (fromHumanInput) {
     markInput();
   }
@@ -455,6 +519,13 @@ function togglePartLock(part, fromHumanInput = true) {
   }
   state.partLocks[part] = !state.partLocks[part];
   updateLockButtons();
+  if (fromHumanInput) {
+    if (state.partLocks[part]) {
+      sound.lockOn(part);
+    } else {
+      sound.lockOff(part);
+    }
+  }
   if (fromHumanInput) {
     markInput();
   }
@@ -938,9 +1009,13 @@ function updateOverlay() {
 }
 
 function setLockState(locked) {
+  const changed = state.locked !== locked;
   state.locked = locked;
   if (locked) {
     statusEl.textContent = "LOCKED";
+    if (changed) {
+      sound.stamp();
+    }
     updateOverlay();
     overlayEl.classList.remove("hidden");
     overlayEl.setAttribute("aria-hidden", "false");
@@ -1441,6 +1516,10 @@ function shiftPart(part, delta, fromHumanInput = true) {
   }
   state.indices[part] = wrapIndex(state.indices[part] + delta, count);
   if (fromHumanInput) {
+    sound.step(part, delta);
+  }
+  syncOriginalMatches(fromHumanInput);
+  if (fromHumanInput) {
     markInput();
   }
   redraw();
@@ -1450,19 +1529,25 @@ function randomizeAll(fromHumanInput = true) {
   const targets = PARTS.filter((part) => !state.partLocks[part]);
   if (targets.length === 0) {
     if (fromHumanInput) {
+      sound.nope();
       flashStatus("ALL LOCKED", 700);
     }
     return;
   }
   if (fromHumanInput) {
     pushUndoSnapshot();
+    sound.randomizeStart();
   }
   targets.forEach((part) => {
     randomizePartToDifferentValue(part);
   });
+  syncOriginalMatches(fromHumanInput);
 
   if (fromHumanInput) {
     markInput();
+    setTimeout(() => {
+      sound.randomizeEnd();
+    }, 90);
   }
 
   redraw();
@@ -2081,6 +2166,28 @@ function attachUI() {
     });
   }
 
+  if (soundToggleBtn) {
+    soundToggleBtn.addEventListener("click", async () => {
+      markInput();
+      if (sound.isEnabled()) {
+        sound.setEnabled(false);
+        updateSoundToggle();
+        flashStatus("SOUND OFF", 700);
+        return;
+      }
+
+      const ok = await sound.initFromUserGesture();
+      updateSoundToggle();
+      if (ok) {
+        flashStatus("SOUND ENABLED", 900);
+        return;
+      }
+      setError("Sound could not start on this device.");
+      sound.setEnabled(false);
+      updateSoundToggle();
+    });
+  }
+
   if (exportDataBtn) {
     exportDataBtn.addEventListener("click", () => {
       markInput();
@@ -2216,6 +2323,12 @@ function attachUI() {
     });
   });
 
+  ["pointerdown", "touchstart", "keydown", "click"].forEach((ev) => {
+    window.addEventListener(ev, () => {
+      sound.unlock();
+    }, { passive: true });
+  });
+
   window.addEventListener("resize", () => {
     redraw();
   });
@@ -2250,11 +2363,15 @@ function setPool(mode) {
   state.currentSetNumber = null;
   state.currentSetId = null;
   state.anchorIndices = cloneIndices();
+  state.originalIndices = cloneIndices();
   state.historyUndo = [];
   state.historyRedo = [];
+  state.lastMatchAllSoundAt = 0;
   buildCohesiveSetsFromCurrentPool();
+  setOriginalMatchStateSilently();
   updateLockButtons();
   updateHistoryButtons();
+  updateSoundToggle();
 }
 
 function preparePools(largeManifest, smallManifest) {
@@ -2348,6 +2465,7 @@ async function init() {
     canvas.height = state.config.canvas;
 
     wirePoolButtons();
+    updateSoundToggle();
     openPoolGate();
   } catch (err) {
     statusEl.textContent = "ERROR";
